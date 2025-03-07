@@ -17,29 +17,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Convertir la hora a formato JSON
     $rs_time = json_encode([$time]);
 
-    // Verificar si la columna "standard_price" existe en la tabla 071_services
-    $check_column_query = "SHOW COLUMNS FROM 071_services LIKE 'standard_price'";
-    $check_column_result = mysqli_query($conn, $check_column_query);
-
-    if (mysqli_num_rows($check_column_result) == 0) {
-        echo json_encode(["error" => "Column 'standard_price' does not exist in 071_services"]);
-        exit;
-    }
-
-    // Obtener el precio del servicio
-    $price_query = "SELECT price FROM 071_services WHERE service_id = '$service_id'";
+    // Obtener el precio y la capacidad máxima del servicio
+    $price_query = "SELECT standard_price, maximum_capacity FROM 071_services WHERE service_id = '$service_id'";
     $price_result = mysqli_query($conn, $price_query);
-    $price_data = mysqli_fetch_assoc($price_result);
 
-    $price_data = mysqli_fetch_assoc($price_result);
-    
-    // Si no se encuentra el precio, enviar error
-    if (!$price_data) {
-        echo json_encode(["error" => "Service price not found"]);
+    if (!$price_result || mysqli_num_rows($price_result) == 0) {
+        echo json_encode(["error" => "Service not found"]);
         exit;
     }
 
-    $unit_price = (int)$price_data['standard_price']; // Aseguramos que el precio sea un int
+    $service_data = mysqli_fetch_assoc($price_result);
+    $unit_price = (float)$service_data['standard_price']; 
+    $max_capacity = (int)$service_data['maximum_capacity']; 
+
+    // Validar que la capacidad solicitada no supere la máxima permitida
+    if ($max_capacity !== null && $capacity > $max_capacity) {
+        echo json_encode(["error" => "Capacity exceeds the maximum allowed"]);
+        exit;
+    }
+
+    // Calcular el precio total
     $total_price = $unit_price * $capacity;
 
     // Obtener un nuevo `reservation_id`
